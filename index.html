@@ -1,0 +1,1421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Full-Screen MCQ Quiz</title>
+<style>
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #1a1a1a;
+    font-family: Arial, sans-serif;
+    color: #fff;
+    overflow: hidden;
+}
+
+#quiz-container {
+    display: none;
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+.question {
+    text-align: center;
+    margin: 3% auto;
+    word-wrap: break-word;
+    font-weight: bold;
+}
+
+.options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 3%;
+    width: 85%;
+    height: 60%;
+    margin: 0 auto;
+}
+
+.option {
+    background-color: #333;
+    border: 2px solid #00ffff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    font-size: 4vw;
+    cursor: pointer;
+    text-align: center;
+    padding: 1%;
+    border-radius: 10px;
+    transition: 0.3s;
+}
+
+.option.correct { background-color: #00cc00; color: #000; }
+.option.wrong { background-color: #cc0000; color: #000; }
+
+.top-bar {
+    width: 100%;
+    height: 60px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 2%;
+    box-sizing: border-box;
+    font-size: 1.8vw;
+}
+
+.progress-container, .timer-container {
+    width: 35%;
+    background: #333;
+    border-radius: 25px;
+    overflow: hidden;
+}
+
+.progress-bar, .timer-bar {
+    height: 25px;
+    width: 0;
+    background-color: #00ffff;
+    transition: width 0.3s;
+}
+
+.score { color: #00ff00; }
+
+.control-buttons {
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.control-buttons button {
+    background-color: #333;
+    border: 2px solid #00ffff;
+    color: #fff;
+    font-weight: bold;
+    cursor: pointer;
+    border-radius: 10px;
+    transition: 0.3s;
+    padding: 10px 15px;
+    text-align: center;
+}
+
+#start-screen, #result-screen {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    flex-direction: column;
+}
+
+#start-screen button, #result-screen button {
+    font-size: 3.5vw;
+    padding: 15px 30px;
+    cursor: pointer;
+    border-radius: 15px;
+    border: none;
+    background-color: #00ffff;
+    color: #000;
+    margin-top: 20px;
+}
+</style>
+</head>
+<body>
+
+<div id="start-screen">
+    <h1>Sharif Tutorial Home</h1>
+    <button onclick="startQuiz()">Start Quiz</button>
+</div>
+
+<div id="quiz-container">
+    <div class="top-bar">
+        <div>Q No: <span id="current-question">1</span> / <span id="total-questions"></span></div>
+        <div class="progress-container">
+            <div class="progress-bar" id="progress-bar"></div>
+        </div>
+        <div class="timer-container">
+            <div class="timer-bar" id="timer-bar"></div>
+        </div>
+        <div class="score" id="score">Score: 0</div>
+    </div>
+
+    <div class="question" id="question"></div>
+    <div class="options" id="options"></div>
+
+    <div class="control-buttons">
+        <button id="pause-btn" onclick="pauseQuiz()">Pause</button>
+        <button id="resume-btn" onclick="resumeQuiz()">Resume</button>
+        <button id="stop-btn" onclick="stopQuiz()">Stop</button>
+    </div>
+</div>
+
+<div id="result-screen">
+    <h1>Your Score: <span id="final-score"></span></h1>
+    <h2 id="wrong-summary"></h2>
+    <button onclick="retryWrong()">Retry Wrong Answers</button>
+    <button onclick="restartQuiz()">Restart Quiz</button>
+</div>
+
+<script>
+// JSON formatted questions
+const quizData = [
+  {
+    "id": 1,
+    "question": "বাংলা ভাষার ক্ষুদ্রতম একক কোনটি?",
+    "options": [
+      "বর্ণ",
+      "ধ্বনি",
+      "শব্দ",
+      "বাক্য"
+    ],
+    "answer": 1
+  },
+  {
+    "id": 2,
+    "question": "বাংলা ভাষায় মোট কয়টি মৌলিক ধ্বনি রয়েছে?",
+    "options": [
+      "৪1টি",
+      "৫০টি",
+      "৩৩টি",
+      "৪৯টি"
+    ],
+    "answer": 1
+  },
+  {
+    "id": 3,
+    "question": "ধ্বনিগুলোকে কয় ভাগে ভাগ করা হয়?",
+    "options": [
+      "দুই ভাগে",
+      "তিন ভাগে",
+      "চার ভাগে",
+      "পাঁচ ভাগে"
+    ],
+    "answer": 0
+  },
+  {
+    "id": 4,
+    "question": "বাংলা বর্ণমালায় মোট কয়টি মৌলিক স্বরধ্বনি রয়েছে?",
+    "options": [
+      "৮টি",
+      "৯টি",
+      "১১টি",
+      "১০টি"
+    ],
+    "answer": 0
+  },
+  {
+    "id": 5,
+    "question": "বাংলা বর্ণমালায় মোট কয়টি মৌলিক ব্যঞ্জনধ্বনি রয়েছে?",
+    "options": [
+      "৩৫টি",
+      "৩৯টি",
+      "৫টি",
+      "৪২টি"
+    ],
+    "answer": 0
+  },
+  {
+    "id": 6,
+    "question": "যেসব ধ্বনি উচ্চারণের সময় বায়ু মুখগহ্বরের কোথাও বাধা পায় না, সেগুলোকে কী বলে?",
+    "options": [
+      "ব্যঞ্জনধ্বনি",
+      "স্বরধ্বনি",
+      "যুগ্মধ্বনি",
+      "সানুনাসিক ধ্বনি"
+    ],
+    "answer": 1
+  },
+  {
+    "id": 7,
+    "question": "যেসব ধ্বনি উচ্চারণের সময় বায়ু মুখের বাইরে আসার আগে বাগ্যন্ত্রের বিভিন্ন জায়গায় বাধা পায়, সেগুলোকে কী বলে?",
+    "options": [
+      "স্বরধ্বনি",
+      "ব্যঞ্জনধ্বনি",
+      "যৌগিক ধ্বনি",
+      "মৌলিক ধ্বনি"
+    ],
+    "answer": 1
+  },
+  {
+    "id": 8,
+    "question": "ধ্বনির প্রতীককে কী বলা হয়?",
+    "options": [
+      "বর্ণ",
+      "শব্দ",
+      "বাক্য",
+      "ভাষা"
+    ],
+    "answer": 0
+  },
+  {
+    "id": 9,
+    "question": "ভাষার সবগুলো বর্ণকে একত্রে কী বলা হয়?",
+    "options": [
+      "বর্ণমালা",
+      "শব্দকোষ",
+      "অক্ষর",
+      "ধ্বনি"
+    ],
+    "answer": 0
+  },
+  {
+    "id": 10,
+    "question": "বাংলা বর্ণমালায় মোট মূল বর্ণের সংখ্যা কয়টি?",
+    "options": [
+      "৪৯টি",
+      "৫০টি",
+      "৫১টি",
+      "৫২টি"
+    ],
+    "answer": 1
+  },
+  {
+    "id": 11,
+    "question": "বাংলা বর্ণমালাকে কয় ভাগে ভাগ করা হয়?",
+    "options": [
+      "দুই ভাগে",
+      "তিন ভাগে",
+      "চার ভাগে",
+      "পাঁচ ভাগে"
+    ],
+    "answer": 0
+  },
+  {
+    "id": 12,
+    "question": "স্বরধ্বনির প্রতীককে কী বলা হয়?",
+    "options": [
+      "স্বরবর্ণ",
+      "ব্যঞ্জনবর্ণ",
+      "স্বরধ্বনির কার",
+      "অ-বর্ণ"
+    ],
+    "answer": 0
+  },
+  {
+    "id": 13,
+    "question": "ব্যঞ্জনধ্বনির প্রতীককে কী বলা হয়?",
+    "options": [
+      "ব্যঞ্জনবর্ণ",
+      "স্বরবর্ণ",
+      "ব্যঞ্জনধ্বনির কার",
+      "বর্ণ"
+    ],
+    "answer": 0
+  },
+  {
+    "id": 14,
+    "question": "বাংলা বর্ণমালায় মোট কয়টি স্বরবর্ণ আছে?",
+    "options": [
+      "৮টি",
+      "৯টি",
+      "১০টি",
+      "১১টি"
+    ],
+    "answer": 3
+  },
+  {
+    "id": 15,
+    "question": "বাংলা বর্ণমালায় মোট কয়টি ব্যঞ্জনবর্ণ আছে?",
+    "options": [
+      "৩৩টি",
+      "৩৫টি",
+      "৩৯টি",
+      "৪০টি"
+    ],
+    "answer": 2
+  },
+  {
+    "id": 16,
+    "question": "নিচের কোনটি স্বরবর্ণ?",
+    "options": [
+      "ক",
+      "ণ",
+      "এ",
+      "য়"
+    ],
+    "answer": 2
+  },
+  {
+    "id": 17,
+    "question": "নিচের কোনটি ব্যঞ্জনবর্ণ?",
+    "options": [
+      "ঋ",
+      "ঔ",
+      "ঈ",
+      "ঢ়"
+    ],
+    "answer": 3
+  },
+  {
+    "id": 18,
+    "question": "ব্যঞ্জনবর্ণের বিকল্প রূপের নাম কী?",
+    "options": [
+      "কারবর্ণ",
+      "ফলা",
+      "অনুস্বর্গ",
+      "যুক্তবর্ণ"
+    ],
+    "answer": 2
+  },
+  {
+    "id": 19,
+    "question": "অনুস্বর্গের মধ্যে কী কী রয়েছে?",
+    "options": [
+      "কারবর্ণ,ফলা, যুক্তবর্ণ",
+      "ফলা, রেফ, বর্ণসংক্ষেপ",
+      "রেফ, কারবর্ণ,সংখ্যাবর্ণ",
+      "ফলা, যুক্তবর্ণ,সংখ্যাবর্ণ"
+    ],
+    "answer": 1
+  },
+  {
+    "id": 20,
+    "question": "ব্যঞ্জনবর্ণের কিছু সংক্ষিপ্ত রূপ ব্যঞ্জনের নিচে অথবা ডান পাশে থাকে, সেগুলোকে কী বলে?",
+    "options": [
+      "ফলা",
+      "রেফ",
+      "বর্ণসংক্ষেপ",
+      "অনুস্বর্গ"
+    ],
+    "answer": 0
+  },
+  {
+    "id": 21,
+    "question": "'র'-এর একটি অনুস্বর্গের নাম কী?",
+    "options": [
+      "রেফ",
+      "কার",
+      "র-ফলা",
+      "র-চিহ্ন"
+    ],
+    "answer": 0
+  },
+  {
+    "id": 22,
+    "question": "একাধিক বর্ণ যুক্ত হয়ে কী তৈরি হয়?",
+    "options": [
+      "অনুস্বর্গ",
+      "বর্ণসংক্ষেপ",
+      "যুক্তবর্ণ",
+      "ফলা"
+    ],
+    "answer": 2
+  },
+  {
+    "id": 23,
+    "question": "যুক্তবর্ণ কত প্রকার?",
+    "options": [
+      "দুই প্রকার",
+      "তিন প্রকার",
+      "চার প্রকার",
+      "পাঁচ প্রকার"
+    ],
+    "answer": 0
+  },
+  {
+    "id": 24,
+    "question": "নিচের কোনটি স্বচ্ছ যুক্তবর্ণের উদাহরণ?",
+    "options": [
+      "ক্ষ",
+      "জ্জ্ব",
+      "ণ্ড",
+      "হ্ম"
+    ],
+    "answer": 2
+  },
+  {
+    "id": 25,
+    "question": "নিচের কোনটি অস্বচ্ছ যুক্তবর্ণের উদাহরণ?",
+    "options": [
+      "ন্দ",
+      "ম্ম",
+      "ক্ত",
+      "জ্ঞ"
+    ],
+    "answer": 2
+  },
+  {
+    "id": 26,
+    "question": "বাংলা ভাষায় সংখ্যা নির্দেশের জন্য মোট কয়টি সংখ্যাবর্ণ রয়েছে?",
+    "options": [
+      "৮টি",
+      "৯টি",
+      "১০টি",
+      "১২টি"
+    ],
+    "answer": 2
+  },
+  {
+    "id": 27,
+    "question": "সংখ্যাবর্ণগুলো কী কী?",
+    "options": [
+      "১-১০",
+      "১-৯",
+      "০-৯",
+      "১-০"
+    ],
+    "answer": 2
+  },
+  {
+    "id": 28,
+    "question": "ধ্বনির প্রতীককে কী বলা হয়?",
+    "options": [
+      "অক্ষর",
+      "বর্ণ",
+      "ধ্বনিচিহ্ন",
+      "শব্দ"
+    ],
+    "answer": 1
+  },
+  {
+    "id": 29,
+    "question": "'য-ফলা' কোন ধরনের অনুস্বর্গ?",
+    "options": [
+      "রেফ",
+      "বর্ণসংক্ষেপ",
+      "ফলা",
+      "যুক্তবর্ণ"
+    ],
+    "answer": 2
+  },
+  {
+    "id": 30,
+    "question": "বাংলা বর্ণমালায় মূল বর্ণ ৫০টি হলেও, এর পাশাপাশি আর কী কী রয়েছে?",
+    "options": [
+      "স্বরবর্ণ ও ব্যঞ্জনবর্ণ",
+      "কারবর্ণ,অনুস্বর্গ,যুক্তবর্ণ ও সংখ্যাবর্ণ",
+      "শব্দ ও বাক্য",
+      "ধ্বনি ও বর্ণ"
+    ],
+    "answer": 1
+  },
+  {
+    "id": 31,
+    "question": "'অ', 'আ', 'ই', 'ঈ' - এগুলো কোন ধরনের বর্ণ?",
+    "options": [
+      "স্বরবর্ণ",
+      "ব্যঞ্জনবর্ণ",
+      "যৌগিক বর্ণ",
+      "মৌলিক বর্ণ"
+    ],
+    "answer": 0
+  },
+  {
+    "id": 32,
+    "question": "'ক', 'খ', 'গ', 'ঘ' - এগুলো কোন ধরনের বর্ণ?",
+    "options": [
+      "স্বরবর্ণ",
+      "ব্যঞ্জনবর্ণ",
+      "মৌলিক বর্ণ",
+      "যৌগিক বর্ণ"
+    ],
+    "answer": 1
+  },
+  {
+    "id": 33,
+    "question": "'ণ্ড' কী ধরনের বর্ণ?",
+    "options": [
+      "ফলা",
+      "বর্ণসংক্ষেপ",
+      "রেফ",
+      "সংখ্যাবর্ণ"
+    ],
+    "answer": 1
+  },
+  {
+    "id": 34,
+    "question": "'ন্দ' কোন ধরনের যুক্তবর্ণ?",
+    "options": [
+      "স্বচ্ছ",
+      "অস্বচ্ছ",
+      "মৌলিক",
+      "যৌগিক"
+    ],
+    "answer": 0
+  },
+  {
+    "id": 35,
+    "question": "'হ্ন' কীসের উদাহরণ?",
+    "options": [
+      "স্বচ্ছ যুক্তবর্ণ",
+      "ফলা",
+      "অস্বচ্ছ যুক্তবর্ণ",
+      "রেফ"
+    ],
+    "answer": 2
+  },
+  {
+    "id": 36,
+    "question": "'৫' কীসের উদাহরণ?",
+    "options": [
+      "সংখ্যাবর্ণ",
+      "কারবর্ণ",
+      "যুক্তবর্ণ",
+      "অনুস্বর্গ"
+    ],
+    "answer": 0
+  },
+  {
+    "id": 37,
+    "question": "'ৎ' কোন ধরনের বর্ণ?",
+    "options": [
+      "স্বরবর্ণ",
+      "ব্যঞ্জনবর্ণ",
+      "কারবর্ণ",
+      "সংখ্যাবর্ণ"
+    ],
+    "answer": 1
+  },
+  {
+    "id": 38,
+    "question": "'ঃ' কোন ধরনের বর্ণ?",
+    "options": [
+      "স্বরবর্ণ",
+      "ব্যঞ্জনবর্ণ",
+      "সংখ্যাবর্ণ",
+      "কারবর্ণ"
+    ],
+    "answer": 1
+  },
+  {
+    "id": 39,
+    "question": "'ং' কোন ধরনের বর্ণ?",
+    "options": [
+      "স্বরবর্ণ",
+      "ব্যঞ্জনবর্ণ",
+      "কারবর্ণ",
+      "সংখ্যাবর্ণ"
+    ],
+    "answer": 1
+  },
+  {
+    "id": 40,
+    "question": "'অ' ধ্বনির প্রতীক কী?",
+    "options": [
+      "অ",
+      "আ",
+      "ই",
+      "ঈ"
+    ],
+    "answer": 0
+  },
+  {
+    "id": 41,
+    "question": "'খ' ধ্বনির প্রতীক কী?",
+    "options": [
+      "ক",
+      "খ",
+      "গ",
+      "ঘ"
+    ],
+    "answer": 1
+  },
+  {
+    "id": 42,
+    "question": "বাংলা বর্ণমালার দুটি প্রধান ভাগ কী কী?",
+    "options": [
+      "ধ্বনি ও বর্ণ",
+      "স্বরবর্ণ ও ব্যঞ্জনবর্ণ",
+      "স্বরধ্বনি ও ব্যঞ্জনধ্বনি",
+      "কারবর্ণ ও যুক্তবর্ণ"
+    ],
+    "answer": 1
+  },
+  {
+    "id": 43,
+    "question": "কোন ধরনের যুক্তবর্ণ দেখে সহজে চেনা যায়?",
+    "options": [
+      "অস্বচ্ছ",
+      "স্বচ্ছ",
+      "উভয়ই",
+      "কোনটিই নয়"
+    ],
+    "answer": 1
+  },
+  {
+    "id": 44,
+    "question": "কোন ধরনের যুক্তবর্ণ দেখে সহজে চেনা যায় না?",
+    "options": [
+      "স্বচ্ছ",
+      "অস্বচ্ছ",
+      "উভয়ই",
+      "কোনটিই নয়"
+    ],
+    "answer": 1
+  },
+  {
+    "id": 45,
+    "question": "'ণ' এবং 'ড' যুক্ত হয়ে কী হয়?",
+    "options": [
+      "ন্দ",
+      "ণ্ঠ",
+      "ণ্ড",
+      "ল্ড"
+    ],
+    "answer": 2
+  },
+  {
+    "id": 46,
+    "question": "'দ' এবং 'ধ' যুক্ত হয়ে কী হয়?",
+    "options": [
+      "দ্ধ",
+      "ন্দ",
+      "দ্গ",
+      "ধ্দ"
+    ],
+    "answer": 0
+  },
+  {
+    "id": 47,
+    "question": "'ম' এবং 'ম' যুক্ত হয়ে কী হয়?",
+    "options": [
+      "ন্ম",
+      "ম্ম",
+      "দ্ম",
+      "ম্ব"
+    ],
+    "answer": 1
+  },
+  {
+    "id": 48,
+    "question": "'হ' এবং 'ম' যুক্ত হয়ে কী হয়?",
+    "options": [
+      "হ্ন",
+      "হ্ম",
+      "হ্য",
+      "হ্র"
+    ],
+    "answer": 1
+  },
+  {
+    "id": 49,
+    "question": "'দ' এবং 'র' যুক্ত হয়ে কী হয়?",
+    "options": [
+      "দ্র",
+      "র্দ্দ",
+      "দ্দ",
+      "দ্ধ"
+    ],
+    "answer": 0
+  },
+  {
+    "id": 50,
+    "question": "'ন' এবং 'দ' যুক্ত হয়ে কী হয়?",
+    "options": [
+      "ন্দ",
+      "ন্দ্ব",
+      "ন্ন",
+      "দ্ন"
+    ],
+    "answer": 0
+  },
+  {
+    "id": 51,
+    "question": "'ল' এর একটি ফলা কী?",
+    "options": [
+      "ন-ফলা",
+      "য-ফলা",
+      "ল-ফলা",
+      "র-ফলা"
+    ],
+    "answer": 2
+  },
+  {
+    "id": 52,
+    "question": "'র' যুক্ত হলে বর্ণের উপরে যে চিহ্ন বসে তার নাম কী?",
+    "options": [
+      "ফলা",
+      "রেফ",
+      "কার",
+      "অনুস্বর্গ"
+    ],
+    "answer": 1
+  },
+  {
+    "id": 53,
+    "question": "'ণ্ড' কী ধরনের বর্ণসংক্ষেপ?",
+    "options": [
+      "ফলা",
+      "যুক্তবর্ণ",
+      "অনুস্বর্গ",
+      "সংখ্যাবর্ণ"
+    ],
+    "answer": 1
+  },
+  {
+    "id": 54,
+    "question": "'ন্ত' কী ধরনের বর্ণসংক্ষেপ?",
+    "options": [
+      "রেফ",
+      "যুক্তবর্ণ",
+      "ফলা",
+      "সংখ্যাবর্ণ"
+    ],
+    "answer": 1
+  },
+  {
+    "id": 55,
+    "question": "ধ্বনি কিসের বিষয়?",
+    "options": [
+      "চোখে দেখার",
+      "কানে শোনার",
+      "লেখার",
+      "পড়ার"
+    ],
+    "answer": 1
+  },
+  {
+    "id": 56,
+    "question": "বর্ণ কিসের বিষয়?",
+    "options": [
+      "কানে শোনার",
+      "লেখার",
+      "চোখে দেখার",
+      "বলার"
+    ],
+    "answer": 2
+  },
+  {
+    "id": 57,
+    "question": "'ণ' এবং 'ঠ' যুক্ত হয়ে কী হয়?",
+    "options": [
+      "ন্ত",
+      "ণ্ঠ",
+      "ন্দ",
+      "ন্ধ"
+    ],
+    "answer": 1
+  },
+  {
+    "id": 58,
+    "question": "'প' এবং 'ত' যুক্ত হয়ে কী হয়?",
+    "options": [
+      "প্ত",
+      "ন্ত",
+      "দ্ধ",
+      "শ্ত"
+    ],
+    "answer": 0
+  },
+  {
+    "id": 59,
+    "question": "'ত' এবং 'ত' যুক্ত হয়ে কী হয়?",
+    "options": [
+      "ত্ত",
+      "ত্দ",
+      "ন্ত",
+      "ত্থ"
+    ],
+    "answer": 0
+  },
+  {
+    "id": 60,
+    "question": "'ধ' এবং 'ব' যুক্ত হয়ে কী হয়?",
+    "options": [
+      "দ্দ্ব",
+      "ধ্ব",
+      "দ্ব",
+      "ধ্ব"
+    ],
+    "answer": 3
+  },
+  {
+    "id": 61,
+    "question": "'হ' এবং 'র' যুক্ত হয়ে কী হয়?",
+    "options": [
+      "হ্ম",
+      "হৃ",
+      "হ্ন",
+      "হ্য"
+    ],
+    "answer": 1
+  },
+  {
+    "id": 62,
+    "question": "'দ' এবং 'ম' যুক্ত হয়ে কী হয়?",
+    "options": [
+      "দ্দ",
+      "দ্ম",
+      "দ্ভ",
+      "ন্দ"
+    ],
+    "answer": 1
+  },
+  {
+    "id": 63,
+    "question": "'ক' এবং 'ত' যুক্ত হয়ে কী হয়?",
+    "options": [
+      "ক্স",
+      "ক্ম",
+      "ক্ত",
+      "জ্ঞ"
+    ],
+    "answer": 2
+  },
+  {
+    "id": 64,
+    "question": "'জ' এবং 'জ' যুক্ত হয়ে কী হয়?",
+    "options": [
+      "জ্জ্ব",
+      "জ্জ",
+      "জ্ব",
+      "জ্ঝ"
+    ],
+    "answer": 1
+  },
+  {
+    "id": 65,
+    "question": "'দ' এবং 'দ' যুক্ত হয়ে কী হয়?",
+    "options": [
+      "দ্দ",
+      "দ্ধ",
+      "দ্ব",
+      "দ্ম"
+    ],
+    "answer": 0
+  },
+  {
+    "id": 66,
+    "question": "'ন' এবং 'ন' যুক্ত হয়ে কী হয়?",
+    "options": [
+      "ন্দ",
+      "ন্ন",
+      "ন্ম",
+      "ন্ধ"
+    ],
+    "answer": 1
+  },
+  {
+    "id": 67,
+    "question": "'স' এবং 'ব' যুক্ত হয়ে কী হয়?",
+    "options": [
+      "স্থ",
+      "স্ত্র",
+      "স্ব",
+      "স্ফ"
+    ],
+    "answer": 2
+  },
+  {
+    "id": 68,
+    "question": "'জ' এবং 'ঞ' যুক্ত হয়ে কী হয়?",
+    "options": [
+      "জ্ঞ",
+      "ন্ত",
+      "ক্ত",
+      "ঞ্জ"
+    ],
+    "answer": 0
+  },
+  {
+    "id": 69,
+    "question": "'হ' এবং 'ন' যুক্ত হয়ে কী হয়?",
+    "options": [
+      "হ্ম",
+      "হ্য",
+      "হ্ন",
+      "হৃ"
+    ],
+    "answer": 2
+  },
+  {
+    "id": 70,
+    "question": "'ক' এবং 'ষ' যুক্ত হয়ে কী হয়?",
+    "options": [
+      "ক্স",
+      "ক্ষ",
+      "ক্ব",
+      "ক্ম"
+    ],
+    "answer": 1
+  },
+  {
+    "id": 71,
+    "question": "বাংলা বর্ণমালায় মোট কয়টি স্বরবর্ণ ও ব্যঞ্জনবর্ণ আছে?",
+    "options": [
+      "১১টি স্বরবর্ণ ও ৩৯টি ব্যঞ্জনবর্ণ",
+      "৮টি স্বরবর্ণ ও ৩৫টি ব্যঞ্জনবর্ণ",
+      "১০টি স্বরবর্ণ ও ৪০টি ব্যঞ্জনবর্ণ",
+      "১১টি স্বরবর্ণ ও ৩৫টি ব্যঞ্জনবর্ণ"
+    ],
+    "answer": 0
+  },
+  {
+    "id": 72,
+    "question": "'ৎ', 'ং', 'ঃ' বর্ণগুলো কোন ভাগের অন্তর্ভুক্ত?",
+    "options": [
+      "স্বরবর্ণ",
+      "মৌলিক ব্যঞ্জনধ্বনি",
+      "ব্যঞ্জনবর্ণ",
+      "সংখ্যাবর্ণ"
+    ],
+    "answer": 2
+  },
+  {
+    "id": 73,
+    "question": "বাংলা বর্ণমালায় স্বরবর্ণের সংখ্যা ১১টি, এবং এর মধ্যে মৌলিক স্বরধ্বনি কয়টি?",
+    "options": [
+      "১১টি",
+      "৮টি",
+      "৭টি",
+      "১০টি"
+    ],
+    "answer": 1
+  },
+  {
+    "id": 74,
+    "question": "বাংলা বর্ণমালায় মৌলিক ব্যঞ্জনধ্বনি ৩৫টি, কিন্তু ব্যঞ্জনবর্ণের সংখ্যা কয়টি?",
+    "options": [
+      "৩৫টি",
+      "৩৯টি",
+      "৪০টি",
+      "৪১টি"
+    ],
+    "answer": 1
+  },
+  {
+    "id": 75,
+    "question": "কোন ধরনের ধ্বনি উচ্চারণের জন্য ফুসফুস থেকে আসা বায়ুর প্রয়োজন হয়?",
+    "options": [
+      "শুধুমাত্র স্বরধ্বনি",
+      "শুধুমাত্র ব্যঞ্জনধ্বনি",
+      "স্বরধ্বনি ও ব্যঞ্জনধ্বনি উভয়ই",
+      "কোনোটিই নয়"
+    ],
+    "answer": 2
+  },
+  {
+    "id": 76,
+    "question": "'ক-ফলা' বলে কিছু হয় না, কারণ -",
+    "options": [
+      "ক-এর কোনো সংক্ষিপ্ত রূপ নেই।",
+      "ক-এর কোনো ফলা হয় না।",
+      "ক কোনো ব্যঞ্জনবর্ণ নয়।",
+      "এটি একটি স্বরবর্ণ।"
+    ],
+    "answer": 1
+  },
+  {
+    "id": 77,
+    "question": "'অ' ধ্বনিটিকে মৌলিক বলা হয়, কারণ -",
+    "options": [
+      "এর কোনো সংক্ষিপ্ত রূপ নেই।",
+      "এটি স্বরবর্ণের প্রথম বর্ণ।",
+      "এটি অন্য কোনো ধ্বনির সাহায্যে গঠিত হয় না।",
+      "এর উচ্চারণ দীর্ঘ হয়।"
+    ],
+    "answer": 2
+  },
+  {
+    "id": 78,
+    "question": "'অ' ধ্বনির প্রতীক কী?",
+    "options": [
+      "আ",
+      "অ",
+      "ই",
+      "এটি কোনো প্রতীক নয়।"
+    ],
+    "answer": 1
+  },
+  {
+    "id": 79,
+    "question": "'অ' এবং 'আ' - এই দুটি ধ্বনির মধ্যে কোনটি দীর্ঘ উচ্চারণ ধারণ করে?",
+    "options": [
+      "অ",
+      "আ",
+      "উভয়ই",
+      "কোনোটিই নয়"
+    ],
+    "answer": 1
+  },
+  {
+    "id": 80,
+    "question": "বর্ণকে কিসের প্রতীক বলা হয়েছে?",
+    "options": [
+      "ধ্বনির",
+      "শব্দের",
+      "অক্ষরের",
+      "বাক্যের"
+    ],
+    "answer": 0
+  },
+  {
+    "id": 81,
+    "question": "'র-ফলা' এবং 'রেফ' কোন বর্ণের সংক্ষিপ্ত রূপ?",
+    "options": [
+      "ল",
+      "য",
+      "র",
+      "ব"
+    ],
+    "answer": 2
+  },
+  {
+    "id": 82,
+    "question": "'র' একটি __এর উদাহরণ।",
+    "options": [
+      "স্বরবর্ণ",
+      "ব্যঞ্জনবর্ণ",
+      "ফলা",
+      "অনুস্বর্গ"
+    ],
+    "answer": 1
+  },
+  {
+    "id": 83,
+    "question": "বাংলা বর্ণমালায় কোন ধরনের বর্ণগুলোর পাশে উচ্চারণ নির্দেশ করা হয়েছে?",
+    "options": [
+      "সংখ্যাবর্ণ",
+      "যুক্তবর্ণ",
+      "মৌলিক ধ্বনি",
+      "ফলা"
+    ],
+    "answer": 2
+  },
+  {
+    "id": 84,
+    "question": "'কারবর্ণ'কী?",
+    "options": [
+      "ব্যঞ্জনবর্ণের সংক্ষিপ্ত রূপ",
+      "স্বরবর্ণের সংক্ষিপ্ত রূপ",
+      "যুক্তবর্ণের একটি ধরন",
+      "সংখ্যাবর্ণের একটি ধরন"
+    ],
+    "answer": 1
+  },
+  {
+    "id": 85,
+    "question": "নিচের কোন বর্ণটি স্বরবর্ণ ও ব্যঞ্জনবর্ণের মধ্যে বিভাজিত নয়?",
+    "options": [
+      "সংখ্যাবর্ণ",
+      "যুক্তবর্ণ",
+      "অনুস্বর্গ",
+      "উপরের সবগুলো"
+    ],
+    "answer": 3
+  },
+  {
+    "id": 86,
+    "question": "বাংলা বর্ণমালায় কোন দুটি বর্ণ রয়েছে, যাদের ধ্বনি নেই?",
+    "options": [
+      "ৎ ও ং",
+      "ৎ ও ঃ",
+      "ং ও ঃ",
+      "উপরের সবগুলো"
+    ],
+    "answer": 2
+  },
+  {
+    "id": 87,
+    "question": "কোন বর্ণগুলো কানের শোনার বিষয়কে চোখের দেখার বিষয়ে পরিণত করে?",
+    "options": [
+      "অক্ষর",
+      "ধ্বনি",
+      "বর্ণ",
+      "শব্দ"
+    ],
+    "answer": 2
+  },
+  {
+    "id": 88,
+    "question": "'আঁ' একটি __ধ্বনি।",
+    "options": [
+      "যৌগিক",
+      "মৌলিক",
+      "দ্বিস্বর",
+      "যুগ্ম"
+    ],
+    "answer": 1
+  },
+  {
+    "id": 89,
+    "question": "'ড়' এবং 'ঢ়' কোন ধরনের ব্যঞ্জনবর্ণ?",
+    "options": [
+      "নাসিক্য",
+      "পার্শ্বিক",
+      "তাড়িত",
+      "কম্পিত"
+    ],
+    "answer": 2
+  },
+  {
+    "id": 90,
+    "question": "'ং', 'ৎ', 'ঃ' কোন বর্ণের অংশ?",
+    "options": [
+      "স্বরবর্ণ",
+      "ব্যঞ্জনবর্ণ",
+      "সংখ্যাবর্ণ",
+      "কারবর্ণ"
+    ],
+    "answer": 1
+  },
+  {
+    "id": 91,
+    "question": "যেসব ধ্বনি উচ্চারণের জন্য ফুসফুস থেকে বাতাস বের হয়ে আসে, তাদের কী বলা হয়?",
+    "options": [
+      "স্বরধ্বনি",
+      "ব্যঞ্জনধ্বনি",
+      "উভয়ই",
+      "কোনোটিই নয়"
+    ],
+    "answer": 2
+  },
+  {
+    "id": 92,
+    "question": "'য' এবং 'ব' যুক্ত হয়ে যে যুক্তবর্ণটি তৈরি হয়, তা কোন ধরনের?",
+    "options": [
+      "স্বচ্ছ",
+      "অস্বচ্ছ",
+      "মৌলিক",
+      "যৌগিক"
+    ],
+    "answer": 1
+  },
+  {
+    "id": 93,
+    "question": "'অ' ধ্বনির প্রতীক হিসেবে কোন বর্ণ ব্যবহৃত হয়?",
+    "options": [
+      "অ",
+      "আ",
+      "আ-কার",
+      "কোনোটিই নয়"
+    ],
+    "answer": 0
+  },
+  {
+    "id": 94,
+    "question": "'ৎ' কোন ধরনের ধ্বনি নির্দেশ করে?",
+    "options": [
+      "ব্যঞ্জন",
+      "স্বর",
+      "নাসিক্য",
+      "কোনোটিই নয়"
+    ],
+    "answer": 0
+  },
+  {
+    "id": 95,
+    "question": "'রেফ' কীসের সংক্ষিপ্ত রূপ?",
+    "options": [
+      "য-ফলা",
+      "র-ফলা",
+      "ব-ফলা",
+      "ল-ফলা"
+    ],
+    "answer": 1
+  },
+  {
+    "id": 96,
+    "question": "বাংলা ভাষায় 'অ' ধ্বনির উচ্চারণ কয়ভাবে হতে পারে?",
+    "options": [
+      "দুইভাবে",
+      "তিনভাবে",
+      "চারভাবে",
+      "পাঁচভাবে"
+    ],
+    "answer": 0
+  },
+  {
+    "id": 97,
+    "question": "'অ' একটি __।",
+    "options": [
+      "স্বরবর্ণ",
+      "ব্যঞ্জনবর্ণ",
+      "ধ্বনি ও বর্ণ উভয়ই",
+      "কোনোটিই নয়"
+    ],
+    "answer": 2
+  },
+  {
+    "id": 98,
+    "question": "বাংলা বর্ণমালায় মোট কতটি মৌলিক ব্যঞ্জনধ্বনি রয়েছে?",
+    "options": [
+      "৩৫টি",
+      "৩৯টি",
+      "৩৩টি",
+      "৪২টি"
+    ],
+    "answer": 0
+  },
+  {
+    "id": 99,
+    "question": "'দ' এবং 'ব' যুক্ত হয়ে যে যুক্তবর্ণটি তৈরি হয়, তার নাম কী?",
+    "options": [
+      "দ্ব",
+      "দব",
+      "ব্দ",
+      "দ্ভ"
+    ],
+    "answer": 0
+  },
+  {
+    "id": 100,
+    "question": "'ৎ' বর্ণটি কোন ধ্বনি নির্দেশ করে?",
+    "options": [
+      "ত-এর",
+      "স-এর",
+      "শ-এর",
+      "ৎ-এর"
+    ],
+    "answer": 0
+  }
+];
+
+let currentQuestion = 0;
+let score = 0;
+let wrongAnswers = [];
+let timer;
+let timeLeft = 30;
+let paused = false;
+
+const questionEl = document.getElementById("question");
+const optionsEl = document.getElementById("options");
+const progressBar = document.getElementById("progress-bar");
+const timerBar = document.getElementById("timer-bar");
+const scoreEl = document.getElementById("score");
+const currentQuestionEl = document.getElementById("current-question");
+const totalQuestionsEl = document.getElementById("total-questions");
+const quizContainer = document.getElementById("quiz-container");
+const startScreen = document.getElementById("start-screen");
+const resultScreen = document.getElementById("result-screen");
+const finalScore = document.getElementById("final-score");
+const wrongSummary = document.getElementById("wrong-summary");
+
+totalQuestionsEl.innerText = quizData.length;
+
+function startQuiz() {
+    startScreen.style.display = "none";
+    quizContainer.style.display = "block";
+    currentQuestion = 0;
+    score = 0;
+    wrongAnswers = [];
+    updateScore();
+    showQuestion();
+    openFullscreen();
+}
+
+function showQuestion() {
+    if (currentQuestion >= quizData.length) {
+        endQuiz();
+        return;
+    }
+
+    timeLeft = 30;
+    updateTimer();
+    startTimer();
+
+    const q = quizData[currentQuestion];
+    questionEl.innerText = `${q.id}. ${q.question}`; // Show serial from JSON
+    adjustFontSize(questionEl, q.question, 6);
+
+    optionsEl.innerHTML = "";
+    q.options.forEach((option, index) => {
+        const btn = document.createElement("div");
+        btn.classList.add("option");
+        btn.innerText = option;
+        adjustFontSize(btn, option, 4);
+        btn.addEventListener("click", () => selectAnswer(index));
+        optionsEl.appendChild(btn);
+    });
+
+    currentQuestionEl.innerText = currentQuestion + 1;
+    progressBar.style.width = ((currentQuestion / quizData.length) * 100) + "%";
+}
+
+// Dynamic font adjustment
+function adjustFontSize(el, text, maxSize) {
+    let size = maxSize - Math.floor(text.length / 25);
+    if (size < 3) size = 3;
+    el.style.fontSize = size + "vw";
+}
+
+function selectAnswer(index) {
+    stopTimer();
+    const q = quizData[currentQuestion];
+    const optionEls = document.querySelectorAll(".option");
+
+    if (index === q.answer) {
+        optionEls[index].classList.add("correct");
+        score++;
+    } else {
+        optionEls[index].classList.add("wrong");
+        optionEls[q.answer].classList.add("correct");
+        wrongAnswers.push(q);
+    }
+
+    updateScore();
+    setTimeout(() => {
+        currentQuestion++;
+        showQuestion();
+    }, 1000);
+}
+
+function updateScore() { scoreEl.innerText = `Score: ${score}`; }
+
+function startTimer() {
+    timerBar.style.width = "100%";
+    timer = setInterval(() => {
+        if (!paused) {
+            timeLeft--;
+            timerBar.style.width = (timeLeft / 30 * 100) + "%";
+            if (timeLeft <= 0) {
+                stopTimer();
+                wrongAnswers.push(quizData[currentQuestion]);
+                currentQuestion++;
+                showQuestion();
+            }
+        }
+    }, 1000);
+}
+
+function stopTimer() { clearInterval(timer); }
+function updateTimer() { timerBar.style.width = "100%"; }
+function pauseQuiz() { paused = true; }
+function resumeQuiz() { paused = false; }
+function stopQuiz() { stopTimer(); endQuiz(); }
+
+function endQuiz() {
+    quizContainer.style.display = "none";
+    resultScreen.style.display = "flex";
+    finalScore.innerText = `${score} / ${quizData.length}`;
+    if(wrongAnswers.length > 0){
+        wrongSummary.innerText = `Wrong Answers: ${wrongAnswers.length} / ${quizData.length}`;
+    } else {
+        wrongSummary.innerText = "";
+    }
+}
+
+function restartQuiz() {
+    resultScreen.style.display = "none";
+    startScreen.style.display = "flex";
+}
+
+function retryWrong() {
+    if (wrongAnswers.length === 0) return;
+    quizData.splice(0, quizData.length, ...wrongAnswers);
+    resultScreen.style.display = "none";
+    quizContainer.style.display = "block";
+    currentQuestion = 0;
+    score = 0;
+    wrongAnswers = [];
+    updateScore();
+    showQuestion();
+}
+
+function openFullscreen() {
+    const elem = document.documentElement;
+    if (elem.requestFullscreen) { elem.requestFullscreen(); }
+    else if (elem.webkitRequestFullscreen) { elem.webkitRequestFullscreen(); }
+    else if (elem.msRequestFullscreen) { elem.msRequestFullscreen(); }
+}
+</script>
+
+</body>
+</html>
